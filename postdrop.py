@@ -11,11 +11,20 @@ import json
 parser = argparse.ArgumentParser(description='Retrieve and post notes.')
 
 parser.add_argument('command', type=str,
-              choices=['list','get','post'],
-              help='what action to take: list, get, post')
+              choices=['get','post'],
+              help='what action to take: get, post')
 
 parser.add_argument('-s', '--shorturl', metavar='URL', type=str,
-              help='the shorturl of the note to act on, used for retieve only')
+              help='(get) filter note by shorturl')
+
+parser.add_argument('-f', '--filter-tag', metavar='TAG', type=str,
+              help='(get) filter notes by tag.')
+
+parser.add_argument('-t', '--title', metavar='TITLE', type=str,
+              help='(post) title of the note to send.')
+
+parser.add_argument('-m', '--message', metavar='MSG', type=str,
+              help='(post) text of message to send. Otherwise standard input will be used.')
 
 parser.add_argument('-v', '--verbose', action='store_true',
               help='Include additional debug messages.')
@@ -49,7 +58,7 @@ def get_note(shorturl):
   if r.status_code == requests.codes.ok:
     return r.json()
   elif r.status_code == requests.codes.forbidden:
-    return read_private_note(shorturl)
+    return get_private_note(shorturl)
   else:
     return None
 
@@ -66,13 +75,17 @@ if args.command == "get":
   if args.shorturl is not None:
     note = get_note(args.shorturl)
     if note is not None:
-      print(note['title']+':', note['text'])
+      print(note['title']+':\n', note['text'])
     else:
       print_err("Note not found.")
+  elif args.tag is not None:
+      print_err("Not implemented.")
   else:
-    util.print_err("No shorturl provided.")
-elif args.command == "list":
-  notes = list_notes()
-  if notes is not None:
-    for note in notes['notes']:
-      print(note['shorturl'].rjust(4), '-', note['title']+':', note['text'])
+    notes = list_notes()
+    if notes is not None:
+      for note in notes['notes']:
+        print(note['shorturl'].rjust(4), '-', note['title']+':', note['text'])
+elif args.command == "post":
+  print_err("Not implemented.")
+else:
+  print_err("No command specified")
