@@ -2,7 +2,7 @@ from __future__ import print_function
 
 import onetimepass as otp
 import requests
-import util
+from util import *
 
 import argparse
 from sys import argv
@@ -41,7 +41,7 @@ with open("hostname.key") as f:
   hostname = f.read().strip()
 
 def get_auth():
-  return util.md5(primary_key + str(otp.get_totp(secret=otp_secret)))
+  return md5(primary_key + str(otp.get_totp(secret=otp_secret)))
 
 def list_notes():
   if args.verbose: print("Listing notes.")
@@ -71,6 +71,7 @@ def get_private_note(shorturl):
   else:
     return None
 
+if args.verbose: print(args)
 if args.command == "get":
   if args.shorturl is not None:
     note = get_note(args.shorturl)
@@ -78,7 +79,7 @@ if args.command == "get":
       print(note['title']+':\n', note['text'])
     else:
       print_err("Note not found.")
-  elif args.tag is not None:
+  elif args.filter_tag is not None:
       print_err("Not implemented.")
   else:
     notes = list_notes()
