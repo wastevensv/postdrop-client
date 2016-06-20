@@ -51,6 +51,13 @@ def list_notes():
   else:
     return None
 
+def list_tagged_notes(tags):
+  if args.verbose: print("Listing tag: ",tags)
+  r = requests.get(hostname+"/tags/"+tags)
+  if r.status_code == requests.codes.ok:
+    return r.json()
+  else:
+    return None
 
 def get_note(shorturl):
   if args.verbose: print("Retrieving note: ",shorturl)
@@ -80,7 +87,10 @@ if args.command == "get":
     else:
       print_err("Note not found.")
   elif args.filter_tag is not None:
-      print_err("Not implemented.")
+    notes = list_tagged_notes(args.filter_tag)
+    if notes is not None:
+      for note in notes['notes']:
+        print(note['shorturl'].rjust(4), '-', note['title']+':', note['text'])
   else:
     notes = list_notes()
     if notes is not None:
