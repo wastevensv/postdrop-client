@@ -5,6 +5,7 @@ import requests
 from util import *
 
 import argparse
+import sys
 from sys import argv
 import json
 
@@ -29,6 +30,9 @@ parser.add_argument('-m', '--message', metavar='MSG', type=str,
 parser.add_argument('-v', '--verbose', action='store_true',
               help='Include additional debug messages.')
 
+parser.add_argument('-T', '--tags', metavar='TAGS', type=str, nargs='*',
+              help='(post) space seperated list of tags for note.')
+
 args = parser.parse_args()
 
 with open("primary.key") as f:
@@ -40,8 +44,30 @@ with open("otpsecret.key") as f:
 with open("hostname.key") as f:
   hostname = f.read().strip()
 
+with open("username.key") as f:
+  username = f.read().strip()
+
 def get_auth():
   return md5(primary_key + str(otp.get_totp(secret=otp_secret)))
+
+def post_note(title, message, tags):
+  if args.verbose: print("Posting note.")
+  if title is None: title = ""
+  payload = {
+    'username': username,
+    'auth': get_auth(),
+    'text': message,
+    }
+  if tags is not None:
+    payload['tags'] = tags
+  if title is not None:
+    payload['title'] = title
+  r = requests.post(hostname+"/note/new", json=payload)
+  if args.verbose: print(r.text)
+  if r.status_code == requests.codes.ok:
+    return get_note(r.text)
+  else:
+    return None
 
 def list_notes():
   if args.verbose: print("Listing notes.")
@@ -97,6 +123,16 @@ if args.command == "get":
       for note in notes['notes']:
         print(note['shorturl'].rjust(4), '-', note['title']+':', note['text'])
 elif args.command == "post":
-  print_err("Not implemented.")
+  if args.message is None:
+    message = ""
+    for line in sys.stdin.readlines():
+      message += line
+  else:
+    message = args.message
+  note = post_note(args.title, message, args.tags)
+  if note is not None:
+    print(note['title']+':\n', note['text'])
+  else:
+    print_err("Problem posting note.")
 else:
   print_err("No command specified")
