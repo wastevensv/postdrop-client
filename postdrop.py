@@ -27,13 +27,14 @@ parser.add_argument('-t', '--title', metavar='TITLE', type=str,
 parser.add_argument('-m', '--message', metavar='MSG', type=str,
               help='(post) text of message to send. Otherwise standard input will be used.')
 
-parser.add_argument('-v', '--verbose', action='store_true',
-              help='Include additional debug messages.')
+parser.add_argument('-p', '--private', action='store_true',
+              help='(post) Make a note private.')
 
 parser.add_argument('-T', '--tags', metavar='TAGS', type=str, nargs='*',
               help='(post) space seperated list of tags for note.')
 
-args = parser.parse_args()
+parser.add_argument('-v', '--verbose', action='store_true',
+              help='Include additional debug messages.')
 
 with open("primary.key") as f:
   primary_key = f.read().strip()
@@ -50,13 +51,14 @@ with open("username.key") as f:
 def get_auth():
   return md5(primary_key + str(otp.get_totp(secret=otp_secret)))
 
-def post_note(title, message, tags):
+def post_note(title, message, tags, private):
   if args.verbose: print("Posting note.")
   if title is None: title = ""
   payload = {
     'username': username,
     'auth': get_auth(),
     'text': message,
+    'private': private
     }
   if tags is not None:
     payload['tags'] = tags
@@ -67,6 +69,7 @@ def post_note(title, message, tags):
   if r.status_code == requests.codes.ok:
     return get_note(r.text)
   else:
+    print(r.text)
     return None
 
 def list_notes():
@@ -104,35 +107,37 @@ def get_private_note(shorturl):
   else:
     return None
 
-if args.verbose: print(args)
-if args.command == "get":
-  if args.shorturl is not None:
-    note = get_note(args.shorturl)
-    if note is not None:
-      print(note['title']+':\n', note['text'])
+if __name__ == "__main__":
+    args = parser.parse_args()
+    if args.verbose: print(args)
+    if args.command == "get":
+      if args.shorturl is not None:
+        note = get_note(args.shorturl)
+        if note is not None:
+          print(note['title']+':\n', note['text'])
+        else:
+          print_err("Note not found.")
+      elif args.filter_tag is not None:
+        notes = list_tagged_notes(args.filter_tag)
+        if notes is not None:
+          for note in notes['notes']:
+            print(note['shorturl'].rjust(4), '-', note['title']+':', note['text'])
+      else:
+        notes = list_notes()
+        if notes is not None:
+          for note in notes['notes']:
+            print(note['shorturl'].rjust(4), '-', note['title']+':', note['text'])
+    elif args.command == "post":
+      if args.message is None:
+        message = ""
+        for line in sys.stdin.readlines():
+          message += line
+      else:
+        message = args.message
+      note = post_note(args.title, message, args.tags, args.private)
+      if note is not None:
+        print(note['title']+':\n', note['text'])
+      else:
+        print_err("Problem posting note.")
     else:
-      print_err("Note not found.")
-  elif args.filter_tag is not None:
-    notes = list_tagged_notes(args.filter_tag)
-    if notes is not None:
-      for note in notes['notes']:
-        print(note['shorturl'].rjust(4), '-', note['title']+':', note['text'])
-  else:
-    notes = list_notes()
-    if notes is not None:
-      for note in notes['notes']:
-        print(note['shorturl'].rjust(4), '-', note['title']+':', note['text'])
-elif args.command == "post":
-  if args.message is None:
-    message = ""
-    for line in sys.stdin.readlines():
-      message += line
-  else:
-    message = args.message
-  note = post_note(args.title, message, args.tags)
-  if note is not None:
-    print(note['title']+':\n', note['text'])
-  else:
-    print_err("Problem posting note.")
-else:
-  print_err("No command specified")
+      print_err("No command specified")
